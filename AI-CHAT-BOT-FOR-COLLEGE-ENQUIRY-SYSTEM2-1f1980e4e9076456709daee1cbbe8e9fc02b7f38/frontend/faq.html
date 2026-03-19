@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAQs - College Enquiry Bot</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="index.html" class="navbar-brand">
+    <span>🎓</span>
+    <span>College Enquiry Bot</span>
+  </a>
+  <div class="navbar-nav">
+    <a href="index.html" class="nav-link">Home</a>
+    <a href="login.html" class="nav-link">Login</a>
+    <a href="register.html" class="btn btn-primary btn-sm">Register</a>
+  </div>
+</nav>
+
+<div style="max-width:900px;margin:0 auto;padding:2rem">
+  <div id="alert-container"></div>
+
+  <div class="page-header">
+    <div>
+      <h2>❓ Frequently Asked Questions</h2>
+      <p>Find answers to common questions about our college</p>
+    </div>
+    <a href="chat.html" class="btn btn-primary">💬 Chat with Bot</a>
+  </div>
+
+  <!-- Search & Filter -->
+  <div class="faq-search-bar">
+    <input type="text" id="faq-search" class="form-control" placeholder="🔍 Search FAQs...">
+    <div class="faq-filters">
+      <button class="filter-btn active" data-category="">All</button>
+      <button class="filter-btn" data-category="admissions">📋 Admissions</button>
+      <button class="filter-btn" data-category="courses">📚 Courses</button>
+      <button class="filter-btn" data-category="fees">💰 Fees</button>
+      <button class="filter-btn" data-category="facilities">🏫 Facilities</button>
+    </div>
+  </div>
+
+  <!-- Results count -->
+  <p id="faq-count" style="color:var(--gray-500);margin-bottom:1rem;font-size:0.9rem"></p>
+
+  <!-- FAQ list -->
+  <div id="faq-list" class="faq-accordion">
+    <div class="loading-overlay"><span class="spinner"></span> Loading FAQs...</div>
+  </div>
+
+  <!-- Pagination -->
+  <div id="faq-pagination" class="pagination"></div>
+
+  <!-- CTA -->
+  <div class="card" style="margin-top:2rem;text-align:center">
+    <h3>Can't find your answer?</h3>
+    <p style="margin:0.75rem 0">Chat with our AI assistant or submit a formal inquiry to our team.</p>
+    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+      <a href="chat.html" class="btn btn-primary">💬 Ask the Chatbot</a>
+      <a href="inquiry.html" class="btn btn-outline">📝 Submit Inquiry</a>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script>
+let currentCategory = '';
+let currentSearch = '';
+let faqPage = 1;
+
+async function loadFAQs(page = 1) {
+  faqPage = page;
+  const list = document.getElementById('faq-list');
+  list.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Loading...</div>';
+
+  const res = await FAQAPI.getAll(page, 15, currentCategory, currentSearch);
+  if (!res.ok) {
+    list.innerHTML = '<p style="color:var(--danger);text-align:center">Failed to load FAQs</p>';
+    return;
+  }
+
+  const { data: faqs, pagination } = res.data.data;
+  const countEl = document.getElementById('faq-count');
+  if (countEl) countEl.textContent = `Showing ${faqs.length} of ${pagination.total} results`;
+
+  if (faqs.length === 0) {
+    list.innerHTML = '<div class="card" style="text-align:center;padding:2rem"><p>No FAQs found for your search. Try different keywords or <a href="inquiry.html">submit an inquiry</a>.</p></div>';
+    return;
+  }
+
+  list.innerHTML = faqs.map((faq, i) => `
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFAQ('faq-${faq.faq_id}', this)">
+        <span>${escapeHtml(faq.question)}</span>
+        <span style="flex-shrink:0">${categoryBadge(faq.category)} <span id="arrow-faq-${faq.faq_id}">▼</span></span>
+      </div>
+      <div class="faq-answer" id="faq-${faq.faq_id}">
+        <p>${escapeHtml(faq.answer)}</p>
+      </div>
+    </div>`).join('');
+
+  renderPagination('faq-pagination', pagination.page, pagination.pages, (p) => loadFAQs(p));
+}
+
+function toggleFAQ(id, questionEl) {
+  const answer = document.getElementById(id);
+  const arrowEl = document.getElementById('arrow-' + id);
+  const isOpen = answer.classList.contains('open');
+  // Close all
+  document.querySelectorAll('.faq-answer').forEach(a => a.classList.remove('open'));
+  document.querySelectorAll('.faq-question').forEach(q => q.classList.remove('open'));
+  document.querySelectorAll('[id^="arrow-faq-"]').forEach(a => a.textContent = '▼');
+  // Toggle
+  if (!isOpen) {
+    answer.classList.add('open');
+    questionEl.classList.add('open');
+    if (arrowEl) arrowEl.textContent = '▲';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Check for category in URL
+  const params = new URLSearchParams(window.location.search);
+  const cat = params.get('category');
+  if (cat) {
+    currentCategory = cat;
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.category === cat);
+    });
+  }
+
+  loadFAQs();
+
+  // Category filter buttons
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentCategory = btn.dataset.category;
+      currentSearch = '';
+      document.getElementById('faq-search').value = '';
+      loadFAQs(1);
+    });
+  });
+
+  // Search
+  const searchInput = document.getElementById('faq-search');
+  searchInput.addEventListener('input', debounce(() => {
+    currentSearch = searchInput.value.trim();
+    if (currentSearch) {
+      currentCategory = '';
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('.filter-btn[data-category=""]').classList.add('active');
+    }
+    loadFAQs(1);
+  }, 400));
+});
+</script>
+</body>
+</html>

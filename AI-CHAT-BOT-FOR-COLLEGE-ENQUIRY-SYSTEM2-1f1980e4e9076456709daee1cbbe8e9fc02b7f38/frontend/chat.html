@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat - College Enquiry Bot</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body style="background:var(--gray-100)">
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="dashboard.html" class="navbar-brand">
+    <span>🎓</span>
+    <span>College Enquiry Bot</span>
+  </a>
+  <div class="navbar-nav">
+    <a href="dashboard.html" class="nav-link">Dashboard</a>
+    <a href="inquiry.html" class="nav-link">Inquiry</a>
+    <a href="faq.html" class="nav-link">FAQs</a>
+    <div class="nav-user">
+      <span>👤</span>
+      <span id="nav-user-name">User</span>
+    </div>
+    <button id="logout-btn" class="btn btn-outline btn-sm">Logout</button>
+  </div>
+</nav>
+
+<div class="chat-container">
+  <!-- Chat Header -->
+  <div class="chat-header">
+    <div class="chat-avatar">🤖</div>
+    <div class="chat-bot-info">
+      <h3>College Assistant</h3>
+      <p><span class="chat-status-dot"></span>Online - Ready to help</p>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:0.5rem">
+      <button id="clear-btn" class="btn btn-outline btn-sm" title="Clear chat">🗑 Clear</button>
+    </div>
+  </div>
+
+  <!-- Quick Questions -->
+  <div style="background:var(--white);padding:0.75rem 1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;border-bottom:1px solid var(--gray-100)">
+    <span style="font-size:0.8rem;color:var(--gray-500);align-self:center">Quick:</span>
+    <button class="filter-btn quick-question" data-question="What are the admission requirements?">Admissions</button>
+    <button class="filter-btn quick-question" data-question="What courses does the college offer?">Courses</button>
+    <button class="filter-btn quick-question" data-question="What is the tuition fee for B.Tech?">Fees</button>
+    <button class="filter-btn quick-question" data-question="What sports facilities are available?">Facilities</button>
+    <button class="filter-btn quick-question" data-question="Is there a placement cell?">Placements</button>
+    <button class="filter-btn quick-question" data-question="Are scholarships available?">Scholarships</button>
+  </div>
+
+  <!-- Messages -->
+  <div id="chat-messages" class="chat-messages"></div>
+
+  <!-- Input Area -->
+  <div class="chat-input-area">
+    <textarea
+      id="chat-input"
+      class="chat-input"
+      placeholder="Ask me about admissions, courses, fees, or facilities..."
+      rows="1"
+    ></textarea>
+    <button id="send-btn" class="btn-send" title="Send message">➤</button>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/chat.js"></script>
+<script>
+  // Handle logout
+  document.addEventListener('DOMContentLoaded', () => {
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+  });
+</script>
+</body>
+</html>

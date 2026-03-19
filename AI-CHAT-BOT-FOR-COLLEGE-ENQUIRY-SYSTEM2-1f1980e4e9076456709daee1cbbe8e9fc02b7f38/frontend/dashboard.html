@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - College Enquiry Bot</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="index.html" class="navbar-brand">
+    <span>🎓</span>
+    <span>College Enquiry Bot</span>
+  </a>
+  <div class="navbar-nav">
+    <div class="nav-user">
+      <span>👤</span>
+      <span id="nav-user-name">User</span>
+    </div>
+    <button id="logout-btn" class="btn btn-outline btn-sm">Logout</button>
+  </div>
+</nav>
+
+<div class="dashboard-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <nav class="sidebar-nav">
+      <a href="dashboard.html" class="sidebar-link active">🏠 <span>Dashboard</span></a>
+      <a href="chat.html" class="sidebar-link">💬 <span>Chat</span></a>
+      <a href="inquiry.html" class="sidebar-link">📝 <span>New Inquiry</span></a>
+      <a href="faq.html" class="sidebar-link">❓ <span>FAQs</span></a>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div id="alert-container"></div>
+
+    <div class="page-header">
+      <div>
+        <h2>Welcome back, <span id="welcome-name">Student</span>! 👋</h2>
+        <p>Here's a summary of your activity</p>
+      </div>
+      <a href="chat.html" class="btn btn-primary">💬 Start Chatting</a>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="total-inquiries">—</div>
+        <div class="stat-label">Total Inquiries</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="pending-inquiries">—</div>
+        <div class="stat-label">Pending</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="resolved-inquiries">—</div>
+        <div class="stat-label">Resolved</div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem">
+
+      <!-- Recent Inquiries -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Recent Inquiries</h3>
+          <a href="inquiry.html" class="btn btn-primary btn-sm">+ New</a>
+        </div>
+        <div id="recent-inquiries">
+          <div class="loading-overlay"><span class="spinner"></span> Loading...</div>
+        </div>
+      </div>
+
+      <!-- Quick Links -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Quick Links</h3>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.75rem">
+          <a href="chat.html" class="btn btn-outline">💬 Open Chat Assistant</a>
+          <a href="inquiry.html" class="btn btn-outline">📝 Submit New Inquiry</a>
+          <a href="faq.html?category=admissions" class="btn btn-outline">📋 Admissions FAQs</a>
+          <a href="faq.html?category=fees" class="btn btn-outline">💰 Fees Information</a>
+          <a href="faq.html?category=courses" class="btn btn-outline">📚 Course Details</a>
+          <a href="faq.html?category=facilities" class="btn btn-outline">🏫 Campus Facilities</a>
+        </div>
+      </div>
+
+      <!-- Profile Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">My Profile</h3>
+        </div>
+        <form id="profile-form">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input type="text" id="full_name" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" id="email" class="form-control" disabled>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input type="tel" id="phone" class="form-control" placeholder="Optional">
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem">
+            <button type="submit" id="profile-btn" class="btn btn-primary btn-sm">Save Changes</button>
+            <small style="color:var(--gray-500)">Member since: <span id="member-since">—</span></small>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await requireAuth();
+  if (!user) return;
+  setNavbarUser(user);
+
+  const nameEl = document.getElementById('welcome-name');
+  if (nameEl) nameEl.textContent = user.full_name.split(' ')[0];
+
+  // Load inquiries
+  const res = await InquiryAPI.getAll();
+  const container = document.getElementById('recent-inquiries');
+  const statTotal = document.getElementById('total-inquiries');
+  const statPending = document.getElementById('pending-inquiries');
+  const statResolved = document.getElementById('resolved-inquiries');
+
+  if (res.ok) {
+    const { data: inquiries, pagination } = res.data.data;
+    if (statTotal) statTotal.textContent = pagination.total;
+    const pending = inquiries.filter(i => i.status === 'pending').length;
+    const resolved = inquiries.filter(i => i.status === 'resolved').length;
+    if (statPending) statPending.textContent = pending;
+    if (statResolved) statResolved.textContent = resolved;
+
+    if (inquiries.length === 0) {
+      container.innerHTML = '<p style="color:var(--gray-500);text-align:center;padding:1rem">No inquiries yet. <a href="inquiry.html">Submit one!</a></p>';
+    } else {
+      container.innerHTML = inquiries.slice(0, 5).map(inq => `
+        <div style="padding:0.75rem 0;border-bottom:1px solid var(--gray-100)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong style="font-size:0.9rem">${escapeHtml(inq.subject)}</strong>
+            <span class="badge badge-${inq.status === 'resolved' ? 'success' : 'warning'}">${capitalize(inq.status)}</span>
+          </div>
+          <div style="font-size:0.8rem;color:var(--gray-500);margin-top:0.25rem">
+            ${categoryBadge(inq.category)} &bull; ${formatDate(inq.created_at)}
+          </div>
+          ${inq.admin_reply ? `<div style="font-size:0.85rem;margin-top:0.5rem;padding:0.5rem;background:var(--gray-100);border-radius:4px"><strong>Reply:</strong> ${escapeHtml(inq.admin_reply)}</div>` : ''}
+        </div>`).join('');
+    }
+  } else {
+    container.innerHTML = '<p style="color:var(--danger)">Failed to load inquiries</p>';
+  }
+});
+</script>
+</body>
+</html>

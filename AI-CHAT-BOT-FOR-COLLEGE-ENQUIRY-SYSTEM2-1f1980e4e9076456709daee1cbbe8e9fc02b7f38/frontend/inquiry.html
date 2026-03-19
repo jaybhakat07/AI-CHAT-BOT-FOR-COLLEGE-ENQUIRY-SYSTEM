@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submit Inquiry - College Enquiry Bot</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="dashboard.html" class="navbar-brand">
+    <span>🎓</span>
+    <span>College Enquiry Bot</span>
+  </a>
+  <div class="navbar-nav">
+    <a href="dashboard.html" class="nav-link">Dashboard</a>
+    <a href="chat.html" class="nav-link">Chat</a>
+    <a href="faq.html" class="nav-link">FAQs</a>
+    <div class="nav-user">
+      <span>👤</span>
+      <span id="nav-user-name">User</span>
+    </div>
+    <button id="logout-btn" class="btn btn-outline btn-sm">Logout</button>
+  </div>
+</nav>
+
+<div class="main-content" style="max-width:800px;margin:0 auto;padding:2rem">
+  <div id="alert-container"></div>
+
+  <div class="page-header">
+    <div>
+      <h2>📝 Submit an Inquiry</h2>
+      <p>Our team will review and respond to your inquiry</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+    <!-- Inquiry Form -->
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-header">
+        <h3 class="card-title">New Inquiry</h3>
+        <a href="chat.html" class="btn btn-outline btn-sm">💬 Try Chat Instead</a>
+      </div>
+      <form id="inquiry-form">
+        <div class="form-group">
+          <label class="form-label" for="category">Category *</label>
+          <select id="category" class="form-control" required>
+            <option value="">-- Select Category --</option>
+            <option value="admissions">📋 Admissions</option>
+            <option value="courses">📚 Courses</option>
+            <option value="fees">💰 Fees</option>
+            <option value="facilities">🏫 Facilities</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="subject">Subject *</label>
+          <input type="text" id="subject" class="form-control" placeholder="Brief subject of your inquiry" maxlength="255" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="message">Message *</label>
+          <textarea id="message" class="form-control" rows="6" placeholder="Describe your query in detail..." maxlength="5000" required></textarea>
+          <small style="color:var(--gray-500)">Max 5000 characters</small>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:center">
+          <button type="submit" id="inquiry-btn" class="btn btn-primary">Submit Inquiry</button>
+          <button type="reset" class="btn btn-outline">Reset</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- My Inquiries -->
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-header">
+        <h3 class="card-title">My Inquiries</h3>
+        <span id="inquiry-count" class="badge badge-primary">0</span>
+      </div>
+      <div id="my-inquiries">
+        <div class="loading-overlay"><span class="spinner"></span> Loading...</div>
+      </div>
+      <div id="inquiry-pagination" class="pagination"></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth.js"></script>
+<script>
+let currentPage = 1;
+
+async function loadMyInquiries(page = 1) {
+  currentPage = page;
+  const container = document.getElementById('my-inquiries');
+  container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Loading...</div>';
+
+  const res = await InquiryAPI.getAll(page);
+  if (!res.ok) {
+    container.innerHTML = '<p style="color:var(--danger)">Failed to load inquiries</p>';
+    return;
+  }
+
+  const { data: inquiries, pagination } = res.data.data;
+  const countEl = document.getElementById('inquiry-count');
+  if (countEl) countEl.textContent = pagination.total;
+
+  if (inquiries.length === 0) {
+    container.innerHTML = '<p style="color:var(--gray-500);text-align:center;padding:1rem">No inquiries submitted yet</p>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Subject</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Reply</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${inquiries.map(inq => `
+            <tr>
+              <td data-label="Subject">${escapeHtml(inq.subject)}</td>
+              <td data-label="Category">${categoryBadge(inq.category)}</td>
+              <td data-label="Status"><span class="badge badge-${inq.status === 'resolved' ? 'success' : 'warning'}">${capitalize(inq.status)}</span></td>
+              <td data-label="Date">${formatDate(inq.created_at)}</td>
+              <td data-label="Reply">${inq.admin_reply ? `<span title="${escapeHtml(inq.admin_reply)}" style="cursor:pointer;color:var(--primary)">View Reply</span>` : '<span style="color:var(--gray-500)">Pending</span>'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  renderPagination('inquiry-pagination', pagination.page, pagination.pages,
+    (p) => loadMyInquiries(p));
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await requireAuth();
+  if (!user) return;
+  setNavbarUser(user);
+  loadMyInquiries();
+
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+
+  const form = document.getElementById('inquiry-form');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearAlerts();
+
+    const category = document.getElementById('category').value;
+    const subject = document.getElementById('subject').value.trim();
+    const message = document.getElementById('message').value.trim();
+
+    if (!category) { showAlert('Please select a category', 'error'); return; }
+    if (!subject) { showAlert('Subject is required', 'error'); return; }
+    if (!message) { showAlert('Message is required', 'error'); return; }
+
+    const btn = document.getElementById('inquiry-btn');
+    setButtonLoading(btn, true, 'Submitting...');
+
+    const res = await InquiryAPI.submit({ category, subject, message });
+    setButtonLoading(btn, false, 'Submit Inquiry');
+
+    if (res.ok) {
+      showAlert('Inquiry submitted successfully! Our team will respond soon.', 'success');
+      form.reset();
+      loadMyInquiries();
+    } else {
+      showAlert(res.data.message || 'Submission failed', 'error');
+    }
+  });
+});
+</script>
+</body>
+</html>
